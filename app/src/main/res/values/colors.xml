@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="brand">#4F63FF</color>
+    <!-- Ladla Sheikh site tokens (site.css: ink / violet / pink) -->
+    <color name="ink">#070914</color>
+    <color name="card">#0F1330</color>
+    <color name="violet">#6D4AFF</color>
+    <color name="pink">#FF4FA3</color>
+    <color name="ic_background">#050210</color>
 </resources>

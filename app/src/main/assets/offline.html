@@ -1,6 +1,95 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Offline</title>
-<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:sans-serif;background:#0b1020;color:#e8ecf6;text-align:center;padding:24px}
-a{display:inline-block;margin-top:20px;padding:12px 24px;border-radius:12px;background:#4F63FF;color:#fff;text-decoration:none;font-weight:600}</style></head>
-<body><div><h1>No connection</h1><p>Check your internet and try again.</p><a href="https://theme-testing-web.vercel.app/">Retry</a></div></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070914">
+<title>Offline · Ladla Sheikh</title>
+<style>
+  :root { --ink:#070914; --card:#0f1330; --card2:#181c3c; --line:rgba(241,240,255,.14); --fg:#f1f0ff; --mut:#a7a9c9; --violet:#6d4aff; --pink:#ff4fa3; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: grid; place-items: center; padding: 24px; overflow: hidden;
+    background:
+      radial-gradient(60% 45% at 18% 8%, rgba(109,74,255,.34), transparent 70%),
+      radial-gradient(55% 40% at 88% 92%, rgba(255,79,163,.26), transparent 70%),
+      var(--ink);
+    color: var(--fg);
+    font: 400 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .spark { position: fixed; color: var(--pink); opacity: .55; font-size: 14px; animation: tw 3.4s ease-in-out infinite; pointer-events: none; }
+  .s1 { top: 14%; left: 12%; } .s2 { top: 26%; right: 14%; animation-delay: -1.2s; color: #8f7bff; } .s3 { bottom: 16%; left: 20%; animation-delay: -2.2s; }
+  @keyframes tw { 0%,100% { transform: scale(.7); opacity: .25; } 50% { transform: scale(1.25); opacity: .85; } }
+
+  .card {
+    width: min(100%, 420px); text-align: center; padding: 34px 26px 28px; border-radius: 30px;
+    background: linear-gradient(150deg, var(--card2), var(--card) 62%);
+    border: 1px solid var(--line);
+    box-shadow: 0 30px 80px -30px rgba(0,0,0,.8), inset 0 1px 0 rgba(241,240,255,.07);
+    animation: rise .6s cubic-bezier(.22,1,.36,1) both;
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(18px) scale(.97); } }
+  .logo { width: 84px; height: 84px; margin: 0 auto 18px; border-radius: 24px; overflow: hidden; box-shadow: 0 0 0 1px var(--line), 0 18px 40px -16px rgba(109,74,255,.7); }
+  .logo img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--pink); }
+  .eyebrow::before { content: ""; width: 26px; height: 1px; background: var(--pink); }
+  h1 { margin: 10px 0 8px; font-size: clamp(26px, 8vw, 34px); line-height: 1.1; letter-spacing: -.02em; }
+  h1 em { font-style: italic; background: linear-gradient(90deg, #a99bff, var(--pink)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  p { margin: 0 auto; max-width: 30ch; color: var(--mut); font-size: 15px; }
+  .btn {
+    margin-top: 26px; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    min-width: 180px; padding: 14px 28px; border: 0; border-radius: 999px; cursor: pointer;
+    font: 600 15px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #fff;
+    background: linear-gradient(90deg, var(--violet), var(--pink));
+    box-shadow: 0 16px 36px -14px rgba(255,79,163,.7);
+    transition: transform .25s, box-shadow .25s;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn svg { width: 18px; height: 18px; transition: transform .6s; }
+  .btn.busy svg { animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .live { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 18px; font-size: 12.5px; color: var(--mut); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pink); animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { transform: scale(.7); opacity: .5; } 50% { transform: scale(1.15); opacity: 1; } }
+  .detail { margin: 14px auto 0; max-width: 34ch; font-size: 11.5px; color: rgba(167,169,201,.55); word-break: break-word; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+</head>
+<body>
+  <i class="spark s1">✦</i><i class="spark s2">✦</i><i class="spark s3">✦</i>
+
+  <main class="card">
+    <div class="logo"><img src="logo.png" alt="Ladla Sheikh" width="84" height="84" onerror="this.parentNode.style.display='none'"></div>
+    <span class="eyebrow">No connection</span>
+    <h1>You’re <em>offline</em></h1>
+    <p>Check your internet. The page will reload by itself when you’re back online.</p>
+
+    <button class="btn" id="retry" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+      <span>Try again</span>
+    </button>
+
+    <div class="live"><span class="dot"></span><span>Waiting for connection…</span></div>
+    <div class="detail" id="detail"></div>
+  </main>
+
+<script>
+  var q = new URLSearchParams(location.search);
+  var target = q.get('u') || 'https://android-web-apk.vercel.app/';
+  var detail = q.get('e');
+  if (detail) document.getElementById('detail').textContent = detail;
+
+  function retry() {
+    var b = document.getElementById('retry');
+    b.classList.add('busy');
+    setTimeout(function () { b.classList.remove('busy'); }, 1200);
+    if (window.AndroidApp && AndroidApp.retry) AndroidApp.retry();      // app: reload the page that failed
+    else location.href = target;
+  }
+  document.getElementById('retry').addEventListener('click', retry);
+  window.addEventListener('online', retry);
+</script>
+</body>
+</html>
