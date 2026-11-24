@@ -1,8 +1,6 @@
 package com.sheikhali.apk
 
 import android.Manifest
-import android.animation.ObjectAnimator
-import android.animation.PropertyValuesHolder
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -42,7 +40,6 @@ import android.text.TextUtils
 import android.text.format.Formatter
 import android.util.Base64
 import android.view.Gravity
-import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
@@ -194,15 +191,6 @@ class MainActivity : AppCompatActivity() {
     private var netCallback: ConnectivityManager.NetworkCallback? = null
     private var activeSheet: DownloadSheet? = null
 
-    private var pullToRefreshOn = true      // off on the login / signup screens (their form scrolls inside the page)
-    private var pageToken = 0
-    private var blankRetries = 0
-
-    /** Old site versions ask the browser for an animated cross-page transition; this switches it off inside the app. */
-    private val noViewTransitionJs =
-        "(function(){if(document.getElementById('__novt'))return;var s=document.createElement('style');s.id='__novt';" +
-            "s.textContent='@view-transition{navigation:none}';(document.head||document.documentElement).appendChild(s);})();"
-
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density + 0.5f).toInt()
     private fun dpf(v: Float): Float = v * resources.displayMetrics.density
 
@@ -297,6 +285,16 @@ class MainActivity : AppCompatActivity() {
                     handleDownloadRequest(uri.toString(), web.settings.userAgentString, null, null)
                     return true
                 }
+                // old standalone pages (login.html, signup.html, privacy-policy.html ...) -> the in-page routes of index.html
+                if (isInternal(uri.host)) {
+                    val route = legacyRoute(uri.path)
+                    if (route != null) {
+                        val next = uri.getQueryParameter("next")
+                        val suffix = if (next.isNullOrBlank()) "" else "?next=" + Uri.encode(next)
+                        web.loadUrl(startUrl + "#/" + route + suffix)
+                        return true
+                    }
+                }
                 if (keepInsideApp || isInternal(uri.host) || isAuthUrl(uri)) return false
                 openExternal(uri)
                 return true
@@ -308,6 +306,16 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
         }
+    }
+
+    /** the whole site is one page (index.html); these old file names are only kept for old links / bookmarks */
+    private fun legacyRoute(path: String?): String? = when ((path ?: "").substringAfterLast('/').lowercase()) {
+        "login.html" -> "login"
+        "signup.html" -> "signup"
+        "privacy-policy.html" -> "privacy-policy"
+        "terms-of-service.html" -> "terms-of-service"
+        "data-deletion.html" -> "data-deletion"
+        else -> null
     }
 
     // ═════════════ lifecycle ═════════════
@@ -326,7 +334,7 @@ class MainActivity : AppCompatActivity() {
             setColorSchemeColors(Ui.VIOLET, Ui.PINK)
             setProgressBackgroundColorSchemeColor(Ui.CARD)
             // WebView can be replaced (render crash recovery), so always ask the current one
-            setOnChildScrollUpCallback { _, _ -> web.scrollY > 0 || !pullToRefreshOn }
+            setOnChildScrollUpCallback { _, _ -> web.scrollY > 0 }
             setOnRefreshListener { web.reload() }
         }
         web = createWebView()
@@ -447,32 +455,6 @@ class MainActivity : AppCompatActivity() {
         web.loadUrl(lastFailedUrl ?: startUrl)
     }
 
-    /** If a page "loaded" but drew nothing (solid colour screen): reload once, then show the error page. */
-    private fun scheduleBlankCheck(url: String) {
-        if (url.startsWith("about:")) return
-        val token = ++pageToken
-        ui.postDelayed({
-            if (token != pageToken || showingError || isFinishing) return@postDelayed
-            try {
-                web.evaluateJavascript(
-                    "(function(){var b=document.body;if(!b)return 0;var t=(b.innerText||'').trim().length;" +
-                        "var h=document.documentElement.scrollHeight;return (t>20&&h>150)?1:0;})()"
-                ) { r ->
-                    if (token != pageToken) return@evaluateJavascript
-                    if (r == "1") {
-                        blankRetries = 0
-                    } else if (blankRetries < 1) {
-                        blankRetries++
-                        web.reload()
-                    } else {
-                        blankRetries = 0
-                        showErrorPage(web, url, "The page did not display. Check your connection and try again.")
-                    }
-                }
-            } catch (e: Exception) {}
-        }, 2200)
-    }
-
     private fun showErrorPage(view: WebView, failedUrl: String?, detail: String) {
         showingError = true
         if (failedUrl != null && !failedUrl.startsWith("file:")) lastFailedUrl = failedUrl
@@ -538,16 +520,6 @@ class MainActivity : AppCompatActivity() {
             override fun onPageCommitVisible(view: WebView?, url: String?) {
                 super.onPageCommitVisible(view, url)
                 firstPaint = true
-                if (url != null && !url.startsWith("file:")) view?.evaluateJavascript(noViewTransitionJs, null)
-            }
-
-            // fires for every page AND every #/login style route change
-            override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
-                super.doUpdateVisitedHistory(view, url, isReload)
-                val u = url ?: ""
-                val onAuth = u.contains("#/login") || u.contains("#/signup") || u.contains("/login.html") || u.contains("/signup.html")
-                pullToRefreshOn = !onAuth
-                swipeRefresh.isEnabled = pullToRefreshOn
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -559,8 +531,6 @@ class MainActivity : AppCompatActivity() {
                 if (!isOffline && url != null) {
                     showingError = false
                     if (clearHistoryNext) { clearHistoryNext = false; view?.clearHistory() }
-                    view?.evaluateJavascript(noViewTransitionJs, null)
-                    scheduleBlankCheck(url)
                 }
                 web.evaluateJavascript(
                     """
@@ -887,7 +857,7 @@ class MainActivity : AppCompatActivity() {
         background = ripple(shape)
     }
 
-    /** Bottom sheet in the website's theme: file type badge, progress, speed + time left, Hide / Cancel, then Install / Open. */
+    /** Bottom sheet in the website's theme: progress, size, Hide / Cancel, then Install / Open. */
     private inner class DownloadSheet(
         private val dm: DownloadManager,
         private val id: Long,
@@ -897,20 +867,15 @@ class MainActivity : AppCompatActivity() {
         private val dialog = Dialog(this@MainActivity)
         private val tile = FrameLayout(this@MainActivity)
         private val tileIcon = ImageView(this@MainActivity)
-        private val extTv = TextView(this@MainActivity)
         private val titleTv = TextView(this@MainActivity)
         private val nameTv = TextView(this@MainActivity)
         private val pctTv = TextView(this@MainActivity)
         private val bar = GradientBar(this@MainActivity)
         private val statusTv = TextView(this@MainActivity)
-        private val metaTv = TextView(this@MainActivity)
         private val hideBtn = pillButton("Hide", false)
         private val cancelBtn = pillButton("Cancel", false)
         private val mainBtn = pillButton("Open", true)
-        private var pulse: ObjectAnimator? = null
-        private var lastBytes = 0L
-        private var lastTime = 0L
-        private var speed = 0.0            // bytes per millisecond (smoothed)
+        private var done = false
 
         private val poll = object : Runnable {
             override fun run() {
@@ -927,7 +892,6 @@ class MainActivity : AppCompatActivity() {
                             DownloadManager.STATUS_PAUSED, DownloadManager.STATUS_PENDING -> {
                                 bar.indeterminate = true
                                 pctTv.text = ""
-                                metaTv.text = ""
                                 statusTv.text = "Waiting for network…"
                             }
                             else -> showProgress(got, total)
@@ -942,27 +906,14 @@ class MainActivity : AppCompatActivity() {
 
         init {
             val pad = dp(20)
-            val ext = fileName.substringAfterLast('.', "").uppercase().take(4)
 
             tile.background = GradientDrawable().apply {
                 orientation = GradientDrawable.Orientation.TL_BR
                 setColors(intArrayOf(Ui.VIOLET, Ui.PINK))
-                cornerRadius = dpf(18f)
+                cornerRadius = dpf(16f)
             }
-            extTv.apply {
-                text = if (ext.isEmpty()) "FILE" else ext
-                setTextColor(Color.WHITE); textSize = 12.5f
-                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                gravity = Gravity.CENTER
-            }
-            tileIcon.visibility = View.GONE
-            tile.addView(extTv, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
-            tile.addView(tileIcon, FrameLayout.LayoutParams(dp(26), dp(26), Gravity.CENTER))
-            pulse = ObjectAnimator.ofPropertyValuesHolder(
-                tile,
-                PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.07f),
-                PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.07f)
-            ).apply { duration = 750; repeatCount = ValueAnimator.INFINITE; repeatMode = ValueAnimator.REVERSE }
+            tileIcon.setImageDrawable(ContextCompat.getDrawable(this@MainActivity, R.drawable.ic_download))
+            tile.addView(tileIcon, FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER))
 
             titleTv.apply {
                 text = "Downloading"
@@ -975,23 +926,11 @@ class MainActivity : AppCompatActivity() {
                 maxLines = 1; ellipsize = TextUtils.TruncateAt.MIDDLE
             }
             pctTv.apply {
-                setTextColor(Ui.PINK); textSize = 16f
+                setTextColor(Ui.PINK); textSize = 15f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             }
             statusTv.apply { text = "Starting…"; setTextColor(Ui.MUTED); textSize = 12.5f }
-            metaTv.apply { setTextColor(Ui.TEXT); textSize = 12.5f; gravity = Gravity.END }
             bar.indeterminate = true
-
-            val glow = View(this@MainActivity).apply {
-                background = GradientDrawable().apply {
-                    orientation = GradientDrawable.Orientation.LEFT_RIGHT
-                    setColors(intArrayOf(Color.TRANSPARENT, Ui.VIOLET, Ui.PINK, Color.TRANSPARENT))
-                    cornerRadius = dpf(1f)
-                }
-            }
-            val handle = View(this@MainActivity).apply {
-                background = GradientDrawable().apply { cornerRadius = dpf(2f); setColor(Ui.LINE2) }
-            }
 
             val textCol = LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.VERTICAL
@@ -1001,15 +940,13 @@ class MainActivity : AppCompatActivity() {
             val header = LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                addView(tile, LinearLayout.LayoutParams(dp(52), dp(52)))
+                addView(tile, LinearLayout.LayoutParams(dp(48), dp(48)))
                 addView(textCol, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(14); marginEnd = dp(10) })
                 addView(pctTv)
             }
-            val infoRow = LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                addView(statusTv, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-                addView(metaTv, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(10) })
+
+            val handle = View(this@MainActivity).apply {
+                background = GradientDrawable().apply { cornerRadius = dpf(2f); setColor(Ui.LINE2) }
             }
 
             val buttons = LinearLayout(this@MainActivity).apply {
@@ -1023,22 +960,22 @@ class MainActivity : AppCompatActivity() {
 
             val card = LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.VERTICAL
-                setPadding(pad, dp(10), pad, pad)
+                setPadding(pad, dp(12), pad, pad)
                 background = GradientDrawable().apply {
                     orientation = GradientDrawable.Orientation.TL_BR
                     setColors(intArrayOf(Ui.CARD2, Ui.CARD))
-                    cornerRadius = dpf(30f)
+                    cornerRadius = dpf(28f)
                     setStroke(dp(1), Ui.LINE)
                 }
-                addView(glow, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(2)).apply { marginStart = dp(14); marginEnd = dp(14) })
-                addView(handle, LinearLayout.LayoutParams(dp(38), dp(4)).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(10); bottomMargin = dp(16) })
+                addView(handle, LinearLayout.LayoutParams(dp(38), dp(4)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(16) })
                 addView(header)
                 addView(bar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(8)).apply { topMargin = dp(18) })
-                addView(infoRow, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) })
+                addView(statusTv, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) })
                 addView(buttons, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18) })
             }
 
             val outer = FrameLayout(this@MainActivity).apply {
+                setPadding(dp(12), dp(12), dp(12), dp(12))
                 addView(card, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT)
             }
             val navBottom = ViewCompat.getRootWindowInsets(frame)
@@ -1055,11 +992,7 @@ class MainActivity : AppCompatActivity() {
                 setWindowAnimations(android.R.style.Animation_InputMethod)
                 setDimAmount(0.62f)
             }
-            dialog.setOnDismissListener {
-                ui.removeCallbacks(poll)
-                pulse?.cancel()
-                if (activeSheet === this) activeSheet = null
-            }
+            dialog.setOnDismissListener { ui.removeCallbacks(poll); if (activeSheet === this) activeSheet = null }
 
             hideBtn.setOnClickListener { dialog.dismiss() }       // the download keeps running (notification)
             cancelBtn.setOnClickListener {
@@ -1071,90 +1004,57 @@ class MainActivity : AppCompatActivity() {
 
         fun show() {
             dialog.show()
-            pulse?.start()
             ui.post(poll)
         }
 
         fun dismiss() {
             ui.removeCallbacks(poll)
-            pulse?.cancel()
             if (dialog.isShowing) dialog.dismiss()
         }
 
-        private fun eta(sec: Long): String = when {
-            sec < 60 -> "${sec}s"
-            sec < 3600 -> "${sec / 60}m ${sec % 60}s"
-            else -> "${sec / 3600}h ${(sec % 3600) / 60}m"
-        }
-
         private fun showProgress(got: Long, total: Long) {
-            val now = SystemClock.elapsedRealtime()
-            if (lastTime > 0 && now > lastTime && got >= lastBytes) {
-                val inst = (got - lastBytes).toDouble() / (now - lastTime)
-                speed = if (speed == 0.0) inst else speed * 0.7 + inst * 0.3
-            }
-            lastBytes = got
-            lastTime = now
-
-            val perSec = (speed * 1000).toLong()
-            val speedTxt = if (perSec > 0) "${Formatter.formatShortFileSize(this@MainActivity, perSec)}/s" else ""
-
             if (total > 0) {
                 val f = got.toFloat() / total.toFloat()
                 bar.indeterminate = false
                 bar.fraction = f
                 pctTv.text = "${(f * 100).toInt()}%"
                 statusTv.text = "${Formatter.formatShortFileSize(this@MainActivity, got)} of ${Formatter.formatShortFileSize(this@MainActivity, total)}"
-                metaTv.text = if (perSec > 0) "$speedTxt · ${eta(((total - got) / perSec).coerceAtLeast(1))} left" else ""
             } else {
                 bar.indeterminate = true
                 pctTv.text = ""
                 statusTv.text = Formatter.formatShortFileSize(this@MainActivity, got)
-                metaTv.text = speedTxt
             }
         }
 
         private fun showComplete(size: Long) {
-            pulse?.cancel(); tile.scaleX = 1f; tile.scaleY = 1f
+            done = true
             bar.indeterminate = false
             bar.failed = false
             bar.fraction = 1f
             pctTv.text = ""
-            metaTv.text = ""
-            extTv.visibility = View.GONE
-            tileIcon.visibility = View.VISIBLE
             tileIcon.setImageDrawable(ContextCompat.getDrawable(this@MainActivity, R.drawable.ic_check))
             titleTv.text = "Download complete"
             statusTv.text = "${Formatter.formatShortFileSize(this@MainActivity, size)} · Saved to Downloads"
             hideBtn.text = "Close"
-            cancelBtn.text = "Downloads"
-            cancelBtn.setOnClickListener {
-                try { startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e: Exception) {}
-                dialog.dismiss()
-            }
+            cancelBtn.visibility = View.GONE
             val isApk = fileName.lowercase().endsWith(".apk")
             mainBtn.text = if (isApk && installApkFromApp) "Install" else "Open"
             mainBtn.visibility = View.VISIBLE
             mainBtn.setOnClickListener {
                 if (openDownloaded(dm, id, fileName)) dialog.dismiss()
             }
-            mainBtn.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
         }
 
         private fun showFailed() {
-            pulse?.cancel(); tile.scaleX = 1f; tile.scaleY = 1f
             bar.indeterminate = false
             bar.failed = true
             bar.fraction = 1f
             pctTv.text = ""
-            metaTv.text = ""
             tile.background = GradientDrawable().apply {
                 orientation = GradientDrawable.Orientation.TL_BR
                 setColors(intArrayOf(Ui.RED, Ui.PINK))
-                cornerRadius = dpf(18f)
+                cornerRadius = dpf(16f)
             }
-            extTv.visibility = View.GONE
-            tileIcon.visibility = View.VISIBLE
             tileIcon.setImageDrawable(ContextCompat.getDrawable(this@MainActivity, R.drawable.ic_error))
             titleTv.text = "Download failed"
             statusTv.text = "Check your connection and try again"
@@ -1229,19 +1129,6 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 e.printStackTrace()
                 runOnUiThread { Toast.makeText(this@MainActivity, "Download failed", Toast.LENGTH_SHORT).show() }
-            }
-        }
-
-        /** offline.html: open a page of our own site and drop the offline page from the back stack */
-        @JavascriptInterface
-        fun open(url: String) {
-            val uri = Uri.parse(url)
-            if (uri.scheme == "https" && isInternal(uri.host)) {
-                runOnUiThread {
-                    showingError = false
-                    clearHistoryNext = true
-                    web.loadUrl(url)
-                }
             }
         }
 

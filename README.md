@@ -15,10 +15,16 @@ Wraps https://android-web-apk.vercel.app/ in a native app (package `com.sheikhal
 ## Build
 - JDK 17, Gradle 8.13 (wrapper included -> `./gradlew assembleRelease`; Play Store needs `./gradlew bundleRelease`).
 - compileSdk / targetSdk **36** (Google Play requires API 36 for new apps and updates since 31 Aug 2026).
-- If your GitHub workflow calls plain `gradle`, set `gradle-version: 8.13` in it.
+- Use the included workflow `.github/workflows/build.yml` (it runs `./gradlew`). An old workflow that calls plain `gradle` with an older version will fail.
 
 ## Before publishing on Google Play
 1. Remove `REQUEST_INSTALL_PACKAGES` from `AndroidManifest.xml` and set `installApkFromApp = false`.
 2. Upload an app bundle (`.aab`), signed with a key you keep forever (Play App Signing).
 3. Add `https://android-web-apk.vercel.app/.well-known/assetlinks.json` (package + SHA-256 of your signing key) so website links open in the app.
 4. Provide a 512×512 icon (the included `ic_launcher.png` is only 192 px).
+
+## 1.0.1 — login / pages
+* `MainActivity.legacyRoute()` — any internal link to `login.html`, `signup.html`, `privacy-policy.html`,
+  `terms-of-service.html`, `data-deletion.html` is loaded as the in-page route of `index.html`
+  (`https://android-web-apk.vercel.app/#/login` …), so the app never shows a missing page.
+* Use together with the updated website (`FIXES.txt` in the site folder).
