@@ -155,9 +155,9 @@ private class GradientBar(context: Context) : View(context) {
 class MainActivity : AppCompatActivity() {
 
     // ═════════════ SETTINGS ═════════════
-    private val startUrl = "https://android-web-apk.vercel.app/"
+    private val startUrl = "https://theme-testing-web.vercel.app/"
     /** Sites that open inside the app. Add more hosts here if needed. */
-    private val internalHosts = listOf("android-web-apk.vercel.app")
+    private val internalHosts = listOf("theme-testing-web.vercel.app")
     /** true = every http/https link opens inside the app; false = other websites open in the browser. */
     private val keepInsideApp = false
     /** Removes the "; wv" WebView marker from the user-agent (better for Google / GitHub login). */
