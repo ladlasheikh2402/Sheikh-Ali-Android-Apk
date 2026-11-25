@@ -1,6 +1,6 @@
 # Ladla Sheikh — Android app (WebView)
 
-Wraps https://android-web-apk.vercel.app/ in a native app (package `com.sheikhali.apk`).
+Wraps https://theme-testing-web.vercel.app/ in a native app (package `com.sheikhali.apk`).
 
 ## What the app does
 - Whole website runs inside the app: Sign In / Sign Up / Privacy / Terms open inside the app (the site is one page: `#/login`, `#/signup` ...).
@@ -20,11 +20,11 @@ Wraps https://android-web-apk.vercel.app/ in a native app (package `com.sheikhal
 ## Before publishing on Google Play
 1. Remove `REQUEST_INSTALL_PACKAGES` from `AndroidManifest.xml` and set `installApkFromApp = false`.
 2. Upload an app bundle (`.aab`), signed with a key you keep forever (Play App Signing).
-3. Add `https://android-web-apk.vercel.app/.well-known/assetlinks.json` (package + SHA-256 of your signing key) so website links open in the app.
+3. Add `https://theme-testing-web.vercel.app/.well-known/assetlinks.json` (package + SHA-256 of your signing key) so website links open in the app.
 4. Provide a 512×512 icon (the included `ic_launcher.png` is only 192 px).
 
 ## 1.0.1 — login / pages
 * `MainActivity.legacyRoute()` — any internal link to `login.html`, `signup.html`, `privacy-policy.html`,
   `terms-of-service.html`, `data-deletion.html` is loaded as the in-page route of `index.html`
-  (`https://android-web-apk.vercel.app/#/login` …), so the app never shows a missing page.
+  (`https://theme-testing-web.vercel.app/login.html` …), so the app never shows a missing page.
 * Use together with the updated website (`FIXES.txt` in the site folder).
