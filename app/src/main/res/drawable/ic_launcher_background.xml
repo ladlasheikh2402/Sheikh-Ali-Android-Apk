@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- premium icon background: deep ink -> violet glow (top-left) + pink glow (bottom-right), like the site's aurora -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0" android:startY="0"
+                android:endX="108" android:endY="108"
+                android:type="linear">
+                <item android:color="#0B0720" android:offset="0.0" />
+                <item android:color="#180A36" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="28" android:centerY="26"
+                android:gradientRadius="84"
+                android:type="radial">
+                <item android:color="#9E6D4AFF" android:offset="0.0" />
+                <item android:color="#446D4AFF" android:offset="0.45" />
+                <item android:color="#006D4AFF" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="93" android:centerY="97"
+                android:gradientRadius="76"
+                android:type="radial">
+                <item android:color="#80FF4FA3" android:offset="0.0" />
+                <item android:color="#33FF4FA3" android:offset="0.5" />
+                <item android:color="#00FF4FA3" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- a few sparkles -->
+    <path android:fillColor="#B3FFFFFF" android:pathData="M18,14m-0.9,0a0.9,0.9 0,1 1,1.8 0a0.9,0.9 0,1 1,-1.8 0" />
+    <path android:fillColor="#80FFFFFF" android:pathData="M92,22m-0.7,0a0.7,0.7 0,1 1,1.4 0a0.7,0.7 0,1 1,-1.4 0" />
+    <path android:fillColor="#99FFFFFF" android:pathData="M12,84m-0.8,0a0.8,0.8 0,1 1,1.6 0a0.8,0.8 0,1 1,-1.6 0" />
+    <path android:fillColor="#66FFFFFF" android:pathData="M60,8m-0.6,0a0.6,0.6 0,1 1,1.2 0a0.6,0.6 0,1 1,-1.2 0" />
+    <path android:fillColor="#80FFFFFF" android:pathData="M96,70m-0.7,0a0.7,0.7 0,1 1,1.4 0a0.7,0.7 0,1 1,-1.4 0" />
+</vector>
